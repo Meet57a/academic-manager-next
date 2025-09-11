@@ -162,7 +162,7 @@ export default function TaskManager() {
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header */}
         <div className="text-center space-y-2">
-          <h1 className="text-xl font-bold text-foreground">Academic Task Manager</h1>
+          <h1 className="text-xl font-bold text-foreground">Yad Rakhva Mate</h1>
           {totalTasks > 0 && (
             <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
               <CheckCircle2 className="h-4 w-4" />
