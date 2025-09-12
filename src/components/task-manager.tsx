@@ -185,19 +185,13 @@ export default function TaskManager() {
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header */}
-        <div className="text-center space-y-2">
-          <h1 className="text-xl font-bold text-foreground">Academic Task Manager</h1>
-          {totalTasks > 0 && (
+  
+        {totalTasks > 0 && (
             <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
               <CheckCircle2 className="h-4 w-4" />
               {completedTasks.length} of {totalTasks} tasks completed
             </div>
           )}
-        </div>
-        <div className="flex justify-center gap-4">
-          <button className="border p-2 rounded-lg" onClick={() => setAddTaskModalOpen(true)}>Add Task</button>
-          <button className="border p-2 rounded-lg" onClick={() => setAddSubjectModalOpen(true)}>Add Subject</button>
-        </div>
 
         {/* Add Subject Section */}
         <dialog className="bg-black" id="add-subject-modal" open={addSubjectModalOpen} onClose={() => setAddSubjectModalOpen(false)}>
