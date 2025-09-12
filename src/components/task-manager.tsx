@@ -28,12 +28,15 @@ interface Task {
 export default function TaskManager() {
   const [subjects, setSubjects] = useState<Subject[]>([])
   const [tasks, setTasks] = useState<Task[]>([])
+  const [completedTasks, setCompletedTasks] = useState<Task[]>([])
+  const [notCompletedTasks, setNotCompletedTasks] = useState<Task[]>([])
   const [newSubjectName, setNewSubjectName] = useState("")
   const [newTaskName, setNewTaskName] = useState("")
   const [selectedSubjectId, setSelectedSubjectId] = useState("")
   const [loading, setLoading] = useState(true)
   const [addSubjectModalOpen, setAddSubjectModalOpen] = useState(false)
   const [addTaskModalOpen, setAddTaskModalOpen] = useState(false)
+  const [completedTasksToggle, setCompletedTasksToggle] = useState(false)
 
   const supabase = createClient()
 
@@ -68,6 +71,10 @@ export default function TaskManager() {
 
       setSubjects(subjectsData || [])
       setTasks(tasksData || [])
+      setCompletedTasks((tasksData || []).filter((task) => task.completed))
+      setNotCompletedTasks((tasksData || []).filter((task) => !task.completed))
+      setLoading(false)
+
     } catch (error) {
       console.error("Error fetching data:", error)
     } finally {
@@ -137,8 +144,24 @@ export default function TaskManager() {
       const { error } = await supabase.from("tasks").update({ completed }).eq("id", taskId)
 
       if (error) throw error
-
-      setTasks(tasks.map((task) => (task.id === taskId ? { ...task, completed } : task)))
+      setTasks((prevTasks) =>
+        prevTasks.map((task) =>
+          task.id === taskId ? { ...task, completed } : task
+        )
+      )
+      if (completed) {
+        const updatedTask = tasks.find((task) => task.id === taskId)
+        if (updatedTask) {
+          setCompletedTasks([...completedTasks, { ...updatedTask, completed }])
+          setNotCompletedTasks(notCompletedTasks.filter((task) => task.id !== taskId))
+        }
+      } else {
+        const updatedTask = tasks.find((task) => task.id === taskId)
+        if (updatedTask) {
+          setNotCompletedTasks([...notCompletedTasks, { ...updatedTask, completed }])
+          setCompletedTasks(completedTasks.filter((task) => task.id !== taskId))
+        }
+      }
     } catch (error) {
       console.error("Error updating task:", error)
     }
@@ -152,7 +175,8 @@ export default function TaskManager() {
     )
   }
 
-  const completedTasks = tasks.filter((task) => task.completed).length
+
+
   const totalTasks = tasks.length
 
 
@@ -161,22 +185,16 @@ export default function TaskManager() {
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header */}
-        <div className="text-center space-y-2">
-          <h1 className="text-xl font-bold text-foreground">Academic Task Manager</h1>
-          {totalTasks > 0 && (
-            <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-              <CheckCircle2 className="h-4 w-4" />
-              {completedTasks} of {totalTasks} tasks completed
-            </div>
-          )}
-        </div>
-        <div className="flex justify-center gap-4">
-          <button className="border p-2 rounded-lg" onClick={() => setAddTaskModalOpen(true)}>Add Task</button>
-          <button className="border p-2 rounded-lg" onClick={() => setAddSubjectModalOpen(true)}>Add Subject</button>
-        </div>
+        {totalTasks > 0 && (
+          <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+            <CheckCircle2 className="h-4 w-4" />
+            {completedTasks.length} of {totalTasks} tasks completed
+          </div>
+        )}
+
 
         {/* Add Subject Section */}
-        <dialog className="bg-black"  id="add-subject-modal" open={addSubjectModalOpen} onClose={() => setAddSubjectModalOpen(false)}>
+        <dialog className="bg-black" id="add-subject-modal" open={addSubjectModalOpen} onClose={() => setAddSubjectModalOpen(false)}>
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -216,8 +234,22 @@ export default function TaskManager() {
                 {subject.name}
               </Badge>
             ))}
+
           </div>
         )}
+
+        <div className="flex justify-center gap-4 fixed bottom-4">
+          <button className="border p-2 rounded-lg" onClick={() => setAddTaskModalOpen(true)}>+ Task</button>
+          <button className="border p-2 rounded-lg" onClick={() => setAddSubjectModalOpen(true)}>+ Subject</button>
+          {completedTasks.length > 0 && (
+            <button
+              className={`border p-2 rounded-lg ${completedTasksToggle ? "bg-green-500 text-white" : ""}`}
+              onClick={() => setCompletedTasksToggle(!completedTasksToggle)}
+            >
+              {completedTasksToggle ? "Hide" : "Show"} Completed Tasks
+            </button>
+          )}
+        </div>
 
         {/* Add Task Section */}
         <dialog className="bg-black" id="add-task-modal" open={addTaskModalOpen} onClose={() => setAddTaskModalOpen(false)}>
@@ -265,52 +297,75 @@ export default function TaskManager() {
 
         {/* Tasks List */}
         {tasks.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Tasks</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {tasks.map((task) => (
-                  <div
-                    key={task.id}
-                    className="flex items-center gap-3 p-3 border border-border rounded-lg hover:bg-muted/50 transition-colors"
-                  >
-                    <Checkbox
-                      checked={task.completed}
-                      onCheckedChange={(checked) => toggleTaskStatus(task.id, checked as boolean)}
-                    />
-                    <div className="flex-1 space-y-1">
-                      <div className="flex items-center gap-2">
-                        <Badge
-                          variant="secondary"
-                          className="text-xs px-2 py-0.5"
-                          style={{
-                            backgroundColor: task.subjects?.color + "20",
-                            color: task.subjects?.color,
-                          }}
-                        >
-                          {task.subjects?.name}
-                        </Badge>
-                      </div>
-                      <p
-                        className={`text-sm ${task.completed ? "line-through text-muted-foreground" : "text-foreground"
-                          }`}
-                      >
-                        {task.name}
-                      </p>
-                    </div>
-                    {task.completed ? (
-                      <CheckCircle2 className="h-5 w-5 text-green-500" />
-                    ) : (
-                      <Circle className="h-5 w-5 text-muted-foreground" />
-                    )}
-                  </div>
-                ))}
+          <div className="space-y-4">
+            {notCompletedTasks.length > 0 && (
+              <div>
+                <h2 className="text-lg font-semibold text-foreground mb-2">Pending Tasks</h2>
+                <div className="space-y-2">
+                  {notCompletedTasks.map((task) => (
+                    <Card key={task.id} className="hover:shadow-md transition-shadow">
+                      <CardContent className="flex items-center justify-between ">
+                        <div className="flex items-center gap-3">
+                          <Checkbox
+                            checked={task.completed}
+                            onCheckedChange={(checked) => toggleTaskStatus(task.id, checked as boolean)}
+                          />
+                          <div>
+                            <p className="font-medium text-foreground">{task.name}</p>
+                            {task.subjects && (
+                              <Badge
+                                variant="secondary"
+                                className
+                                ="px-2 py-1 text-xs mt-1"
+                                style={{ backgroundColor: task.subjects.color + "20", color: task.subjects.color }}
+                              >
+                                {task.subjects.name}
+                              </Badge>
+                            )}
+                          </div>
+
+
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
               </div>
-            </CardContent>
-          </Card>
+            )}
+            {completedTasksToggle && completedTasks.length > 0 && (
+              <div>
+                <h2 className="text-lg font-semibold text-foreground mb-2">Completed Tasks</h2>
+                <div className="space-y-2">
+                  {completedTasks.map((task) => (
+                    <Card key={task.id} className="hover:shadow-md transition-shadow">
+                      <CardContent className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <Checkbox
+                            checked={task.completed}
+                            onCheckedChange={(checked) => toggleTaskStatus(task.id, checked as boolean)}
+                          />
+                          <div>
+                            <p className="font-medium text-foreground line-through">{task.name}</p>
+                            {task.subjects && (
+                              <Badge
+                                variant="secondary"
+                                className="px-2 py-1 text-xs mt-1"
+                                style={{ backgroundColor: task.subjects.color + "20", color: task.subjects.color }}
+                              >
+                                {task.subjects.name}
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         )}
+        <div className="mt-4"></div>
 
         {/* Empty State */}
         {subjects.length === 0 && (
