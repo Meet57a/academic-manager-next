@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Plus, BookOpen, CheckCircle2, Circle } from "lucide-react"
+import { Plus, BookOpen, CheckCircle2, Circle, Edit, Delete, Trash } from "lucide-react"
 
 interface Subject {
   id: string
@@ -37,7 +37,8 @@ export default function TaskManager() {
   const [addSubjectModalOpen, setAddSubjectModalOpen] = useState(false)
   const [addTaskModalOpen, setAddTaskModalOpen] = useState(false)
   const [completedTasksToggle, setCompletedTasksToggle] = useState(false)
-
+  const [editTaskModalOpen, setEditTaskModalOpen] = useState(false)
+  const [taskEditId, setTaskEditId] = useState<string | null>(null)
   const supabase = createClient()
 
   useEffect(() => {
@@ -131,11 +132,57 @@ export default function TaskManager() {
       if (error) throw error
 
       setTasks([data, ...tasks])
+      setNotCompletedTasks([data, ...notCompletedTasks])
+
       setNewTaskName("")
       setAddTaskModalOpen(false)
       setSelectedSubjectId("")
     } catch (error) {
       console.error("Error adding task:", error)
+    }
+  }
+
+  const editTask = async (updatedName: string, updatedSubjectId: string) => {
+    try {
+      updatedSubjectId = updatedSubjectId || tasks.find(task => task.id === taskEditId)?.subject_id || "";
+      updatedName = updatedName || tasks.find(task => task.id === taskEditId)?.name || "";
+      const { error } = await supabase
+        .from("tasks")
+        .update({
+          name: updatedName,
+          subject_id: updatedSubjectId,
+        })
+        .eq("id", taskEditId)
+
+      if (error) throw error
+      setNotCompletedTasks((prevTasks) =>
+        prevTasks.map((task) =>
+          task.id === taskEditId ? { ...task, name: updatedName, subject_id: updatedSubjectId } : task
+        )
+      )
+      setCompletedTasks((prevTasks) =>
+        prevTasks.map((task) =>
+          task.id === taskEditId ? { ...task, name: updatedName, subject_id: updatedSubjectId } : task
+        )
+      )
+      setEditTaskModalOpen(false)
+      setTaskEditId(null)
+      setNewTaskName("")
+      setSelectedSubjectId("")
+    } catch (error) {
+      console.error("Error updating task:", error)
+    }
+  }
+
+  const deleteTask = async (taskId: string) => {
+    try {
+      const { error } = await supabase.from("tasks").delete().eq("id", taskId)
+      if (error) throw error
+      setTasks(tasks.filter((task) => task.id !== taskId))
+      setNotCompletedTasks(notCompletedTasks.filter((task) => task.id !== taskId))
+      setCompletedTasks(completedTasks.filter((task) => task.id !== taskId))
+    } catch (error) {
+      console.error("Error deleting task:", error)
     }
   }
 
@@ -185,13 +232,13 @@ export default function TaskManager() {
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header */}
-  
+
         {totalTasks > 0 && (
-            <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-              <CheckCircle2 className="h-4 w-4" />
-              {completedTasks.length} of {totalTasks} tasks completed
-            </div>
-          )}
+          <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+            <CheckCircle2 className="h-4 w-4" />
+            {completedTasks.length} of {totalTasks} tasks completed
+          </div>
+        )}
 
         {/* Add Subject Section */}
         <dialog className="bg-black" id="add-subject-modal" open={addSubjectModalOpen} onClose={() => setAddSubjectModalOpen(false)}>
@@ -295,6 +342,47 @@ export default function TaskManager() {
           )}
         </dialog>
 
+        {/* Edit Task Section */}
+        <dialog className="bg-black" id="edit-task-modal" open={editTaskModalOpen} onClose={() => setEditTaskModalOpen(false)}>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Edit className="h-5 w-5" />
+                Edit Task
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                <select
+                  value={selectedSubjectId ? selectedSubjectId : notCompletedTasks.find(task => task.id === taskEditId)?.subject_id || ""}
+                  onChange={(e) => setSelectedSubjectId(e.target.value)}
+                  className="w-full p-2 border border-input bg-background rounded-md text-foreground"
+                >
+                  <option value="">Select a subject...</option>
+                  {subjects.map((subject) => (
+                    <option key={subject.id} value={subject.id}>
+                      {subject.name}
+                    </option>
+                  ))}
+                </select>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Enter task name..."
+                    value={newTaskName ? newTaskName : tasks.find(task => task.id === taskEditId)?.name || ""}
+                    onChange={(e) => setNewTaskName(e.target.value)}
+
+                    className="flex-1"
+                  />
+                  <Button onClick={() => editTask(newTaskName, selectedSubjectId)} >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Save Changes
+                  </Button>
+                  <Button onClick={() => setEditTaskModalOpen(false)}>Cancel</Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </dialog>
         {/* Tasks List */}
         {tasks.length > 0 && (
           <div className="space-y-4">
@@ -305,25 +393,33 @@ export default function TaskManager() {
                   {notCompletedTasks.map((task) => (
                     <Card key={task.id} className="hover:shadow-md transition-shadow">
                       <CardContent className="flex items-center justify-between ">
-                        <div className="flex items-center gap-3">
-                          <Checkbox
-                            checked={task.completed}
-                            onCheckedChange={(checked) => toggleTaskStatus(task.id, checked as boolean)}
-                          />
-                          <div>
-                            <p className="font-medium text-foreground">{task.name}</p>
-                            {task.subjects && (
-                              <Badge
-                                variant="secondary"
-                                className
-                                ="px-2 py-1 text-xs mt-1"
-                                style={{ backgroundColor: task.subjects.color + "20", color: task.subjects.color }}
-                              >
-                                {task.subjects.name}
-                              </Badge>
-                            )}
+                        <div className="flex items-center justify-between w-full">
+                          <div className="flex items-center gap-4">
+                            <Checkbox
+                              checked={task.completed}
+                              onCheckedChange={(checked) => toggleTaskStatus(task.id, checked as boolean)}
+                            />
+                            <div>
+                              <p className="font-medium text-foreground">{task.name}</p>
+                              {task.subjects && (
+                                <Badge
+                                  variant="secondary"
+                                  className
+                                  ="px-2 py-1 text-xs mt-1"
+                                  style={{ backgroundColor: task.subjects.color + "20", color: task.subjects.color }}
+                                >
+                                  {task.subjects.name}
+                                </Badge>
+                              )}
+                            </div>
                           </div>
-
+                          <div className="flex items-center">
+                            <Edit onClick={() => {
+                              setEditTaskModalOpen(true);
+                              setTaskEditId(task.id);
+                            }} />
+                            <Trash className="ml-4 text-red-400" onClick={() => deleteTask(task.id)} />
+                          </div>
 
                         </div>
                       </CardContent>
@@ -339,23 +435,35 @@ export default function TaskManager() {
                   {completedTasks.map((task) => (
                     <Card key={task.id} className="hover:shadow-md transition-shadow">
                       <CardContent className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <Checkbox
-                            checked={task.completed}
-                            onCheckedChange={(checked) => toggleTaskStatus(task.id, checked as boolean)}
-                          />
-                          <div>
-                            <p className="font-medium text-foreground line-through">{task.name}</p>
-                            {task.subjects && (
-                              <Badge
-                                variant="secondary"
-                                className="px-2 py-1 text-xs mt-1"
-                                style={{ backgroundColor: task.subjects.color + "20", color: task.subjects.color }}
-                              >
-                                {task.subjects.name}
-                              </Badge>
-                            )}
+                        <div className="flex items-center justify-between w-full">
+                          <div className="flex items-center gap-4">
+                            <Checkbox
+                              checked={task.completed}
+                              onCheckedChange={(checked) => toggleTaskStatus(task.id, checked as boolean)}
+                            />
+                            <div>
+                              <p className="font-medium text-foreground">{task.name}</p>
+                              {task.subjects && (
+                                <Badge
+                                  variant="secondary"
+                                  className
+                                  ="px-2 py-1 text-xs mt-1"
+                                  style={{ backgroundColor: task.subjects.color + "20", color: task.subjects.color }}
+                                >
+                                  {task.subjects.name}
+                                </Badge>
+                              )}
+                            </div>
                           </div>
+                          <div className="flex items-center">
+                            <Edit onClick={() => {
+                              setEditTaskModalOpen(true);
+                              setTaskEditId(task.id);
+                            }} />
+                            <Trash className="ml-4 text-red-400" onClick={() => deleteTask(task.id)} />
+                          </div>
+
+
                         </div>
                       </CardContent>
                     </Card>
