@@ -322,7 +322,7 @@ export default function TaskManager() {
                       </option>
                     ))}
                   </select>
-                  <div className="flex gap-2">
+                  <div className="space-y-3">
                     <Input
                       placeholder="Enter task name..."
                       value={newTaskName}
@@ -330,11 +330,13 @@ export default function TaskManager() {
                       onKeyPress={(e) => e.key === "Enter" && addTask()}
                       className="flex-1"
                     />
-                    <Button onClick={addTask} disabled={!newTaskName.trim() || !selectedSubjectId}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Task
-                    </Button>
-                    <Button onClick={() => setAddTaskModalOpen(false)}>Cancel</Button>
+                    <div className="flex gap-2">
+                      <Button onClick={addTask} disabled={!newTaskName.trim() || !selectedSubjectId}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Task
+                      </Button>
+                      <Button onClick={() => setAddTaskModalOpen(false)}>Cancel</Button>
+                    </div>
                   </div>
                 </div>
               </CardContent>
@@ -365,7 +367,7 @@ export default function TaskManager() {
                     </option>
                   ))}
                 </select>
-                <div className="flex gap-2">
+                <div className="">
                   <Input
                     placeholder="Enter task name..."
                     value={newTaskName ? newTaskName : tasks.find(task => task.id === taskEditId)?.name || ""}
@@ -373,11 +375,13 @@ export default function TaskManager() {
 
                     className="flex-1"
                   />
-                  <Button onClick={() => editTask(newTaskName, selectedSubjectId)} >
+                <div className="flex gap-2 mt-3">
+                    <Button onClick={() => editTask(newTaskName, selectedSubjectId)} >
                     <Plus className="h-4 w-4 mr-2" />
                     Save Changes
                   </Button>
                   <Button onClick={() => setEditTaskModalOpen(false)}>Cancel</Button>
+                </div>
                 </div>
               </div>
             </CardContent>
