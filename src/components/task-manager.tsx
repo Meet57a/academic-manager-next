@@ -442,12 +442,11 @@ export default function TaskManager() {
                               onCheckedChange={(checked) => toggleTaskStatus(task.id, checked as boolean)}
                             />
                             <div>
-                              <p className="font-medium text-foreground">{task.name}</p>
+                              <p className="font-medium text-foreground line-through">{task.name}</p>
                               {task.subjects && (
                                 <Badge
                                   variant="secondary"
-                                  className
-                                  ="px-2 py-1 text-xs mt-1"
+                                  className="px-2 py-1 text-xs mt-1"
                                   style={{ backgroundColor: task.subjects.color + "20", color: task.subjects.color }}
                                 >
                                   {task.subjects.name}
